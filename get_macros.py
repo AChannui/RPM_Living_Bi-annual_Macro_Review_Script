@@ -1,19 +1,13 @@
 import argparse
-import json
 import os
-import pathlib
-import sys
 
-from pathlib import Path
+from collections import defaultdict
 from pprint import pprint
 
-import openpyxl
-import requests
 import requests_cache
 
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from openpyxl.descriptors import Integer
 
 def main():
     # argument parsing
@@ -21,7 +15,6 @@ def main():
     parser.add_argument("--user", "-u", type=str, action="store", default=os.getenv("ZENDESK_USERNAME"))
     parser.add_argument("--password", "-p", type=str, action="store", default=os.getenv("ZENDESK_PASSWORD"))
     args = parser.parse_args()
-
 
     # request macros from zendesk
     # session = requests.Session()
@@ -46,7 +39,7 @@ def main():
     group_map = {item["id"]:item["name"].replace("/", "") for item in groups if not item["deleted"]}
 
     # creates dict of macros by group id
-    grouped_macros = dict()
+    grouped_macros = defaultdict(list)
     sort_macros(active_macros, grouped_macros)
 
 
@@ -70,18 +63,16 @@ def main():
 
 def sort_macros(active_macros, grouped_macros):
     for macro in active_macros:
-        resriction = macro["restriction"]
+        restriction = macro["restriction"]
         # filtering out null and non Group restrictions
-        if resriction is None:
+        if restriction is None:
             print(f"restriction is null, macro id number: {macro['id']}")
             continue
-        if resriction["type"] != "Group":
+        if restriction["type"] != "Group":
             print(f"restriction not group, macro id number: {macro['id']}")
             continue
         # creates new 
-        for id in resriction['ids']:
-            if id not in grouped_macros:
-                grouped_macros[id] = []
+        for id in restriction['ids']:
             grouped_macros[id].append(macro)
 
 def create_workbook(group_map, grouped_macros, wb):
@@ -90,12 +81,13 @@ def create_workbook(group_map, grouped_macros, wb):
         # print debugging
         # print(group_map[id])
         ws1 = wb.create_sheet(group_map[id])
-        # header
-        ws1.append(['Name', "ID", "Created", "Updated", "Group", "Usage 30 Days", "Action", "Action Taken"])
+        # adding header
+        header = ['Name', "ID", "Created", "Updated", "Group", "Usage 30 Days", "Action", "Action Taken"]
+        ws1.append(header)
 
         #set font
         font = Font(bold=True, underline='single')
-        for cell in ws1['1:1']:
+        for cell in ws1[1]:
             cell.font = font
 
         # fill sheet with macros from dict
@@ -108,8 +100,6 @@ def create_workbook(group_map, grouped_macros, wb):
         for cell in colB:
             cell.number_format = '0'
         ws1.column_dimensions['B'].hidden=True
-
-
 
 # grabs all data from zendesk from url with key to specify what to grab
 def get_macro_list(session, next_url, key="macros"):
@@ -124,8 +114,6 @@ def get_macro_list(session, next_url, key="macros"):
         results.extend(data[key])
     return results
 
-
-    
 
 if __name__ == "__main__":
     main()
