@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import os
 
 from collections import defaultdict
@@ -47,14 +48,12 @@ def main():
     wb = Workbook()
     create_workbook(group_map, grouped_macros, wb)
         
-
-
-
     #print debugging
     # print(wb.get_sheet_names())
     del wb['Sheet']
     # print debugging
     # print(wb.get_sheet_names())
+    
     wb.save("macro_review.xlsx")
 
     # print debugging
@@ -99,7 +98,43 @@ def create_workbook(group_map, grouped_macros, wb):
         colB = ws1['B']
         for cell in colB:
             cell.number_format = '0'
+        #hidding macro id becuase not shown included in past reviews but might be useful later on
         ws1.column_dimensions['B'].hidden=True
+
+        colC = ws1['C']
+        for cell in colC[1:]:
+            cell.value = convert_iso_to_date(cell.value)
+
+        colD = ws1['D']
+        for cell in colD[1:]:
+            cell.value = convert_iso_to_date(cell.value)
+            
+        auto_space_column_width(ws1)
+        
+
+# not my code 
+# puts width of column so all text is readable
+def auto_space_column_width(worksheet):
+    for column in worksheet.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = (max_length + 2) * 1.1
+        worksheet.column_dimensions[column_letter].width = adjusted_width
+
+# get cell value with ISOdate and converts it into a date
+def convert_iso_to_date(cell_value):
+    full_date = datetime.datetime.fromisoformat(cell_value)
+    # print(dt)
+    number_date = full_date.date()
+    month_abbreviation = number_date.strftime('%Y-%b-%d')
+    #print(month_abbreviation)
+    return month_abbreviation
 
 # grabs all data from zendesk from url with key to specify what to grab
 def get_macro_list(session, next_url, key="macros"):
