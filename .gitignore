@@ -1,0 +1,5 @@
+.env
+cache.sqlite
+zendesk_macros.py
+.*.sw*
+*~
