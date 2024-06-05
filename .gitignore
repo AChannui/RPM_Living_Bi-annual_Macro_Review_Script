@@ -3,3 +3,5 @@ cache.sqlite
 zendesk_macros.py
 .*.sw*
 *~
+*.xlsx
+test.py
