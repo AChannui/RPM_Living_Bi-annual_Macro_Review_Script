@@ -130,6 +130,7 @@ def create_workbook(group_map, grouped_macros, wb):
             cell.value = convert_iso_to_date(cell.value)
             
         auto_space_column_width(ws1)
+        ws1.auto_filter.ref = ws1.dimensions
         
 
 # not my code 
