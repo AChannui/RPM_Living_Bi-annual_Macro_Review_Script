@@ -3,12 +3,13 @@ import datetime
 import os
 
 from collections import defaultdict
+from datetime import timedelta
 from pprint import pprint
 
 import requests_cache
 
 from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Color, Font, PatternFill
 
 def main():
     # argument parsing
@@ -73,6 +74,7 @@ def sort_macros(active_macros, grouped_macros):
         # creates new 
         for id in restriction['ids']:
             grouped_macros[id].append(macro)
+            
 
 def create_workbook(group_map, grouped_macros, wb):
     for id, macro_list in grouped_macros.items():
@@ -88,12 +90,28 @@ def create_workbook(group_map, grouped_macros, wb):
         font = Font(bold=True, underline='single')
         for cell in ws1[1]:
             cell.font = font
+            
+        # highlight set up
+        highlight_index = Color(indexed=5)
+        highlight_fill = PatternFill(patternType='solid', fgColor=highlight_index)
 
-        # fill sheet with macros from dict
+        # date operations set up
+        comparision_date = datetime.datetime.today() - timedelta(days=90)
+        # print debugging
+        # print(comparision_date)
+
+        # populating sheet with associated macros and highlighting macros of interest
         for macro in macro_list:
             macro_groups = ",".join (group_map[item] for item in macro['restriction']['ids'])
             ws1.append([macro["title"], macro["id"], macro["created_at"], macro["updated_at"], macro_groups, macro["usage_30d"]])
-        
+
+            updated_time = datetime.datetime.strptime(macro['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
+            # print debugging
+            # print(updated_time)
+            if macro['usage_30d'] is 0 or (updated_time < comparision_date and macro['usage_30d'] is 0):
+                for cell in ws1[ws1.max_row]:
+                    cell.fill = highlight_fill
+
         # set id to show in regular form not scientific notation
         colB = ws1['B']
         for cell in colB:
@@ -101,6 +119,7 @@ def create_workbook(group_map, grouped_macros, wb):
         #hidding macro id becuase not shown included in past reviews but might be useful later on
         ws1.column_dimensions['B'].hidden=True
 
+        # changing dates from iso dates to 3 letter months with number year and day
         colC = ws1['C']
         for cell in colC[1:]:
             cell.value = convert_iso_to_date(cell.value)
