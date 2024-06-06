@@ -54,7 +54,8 @@ def main():
     del wb['Sheet']
     # print debugging
     # print(wb.get_sheet_names())
-    
+
+    wb._sheets.sort(key=lambda ws: ws.title)
     wb.save("macro_review.xlsx")
 
     # print debugging
