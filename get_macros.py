@@ -70,7 +70,8 @@ def main():
 # moves sheet with matching name to front.
 def move_public_macro_sheet(wb, public_macro_sheet_name):
     for count, sheet in enumerate(wb._sheets):
-        print(count, sheet.title)
+        # print debugging
+        # print(count, sheet.title)
         if sheet.title == public_macro_sheet_name:
             temp = wb._sheets.pop(count)
             wb._sheets.insert(0, temp)
