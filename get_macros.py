@@ -40,8 +40,9 @@ def main():
     # print debugging
     # print(len(groups))
     # dict of group id and corresponding name
+    public_macro_sheet_name = "Public Shared Macros"
     group_map = {item["id"]:item["name"].replace("/", "") for item in groups if not item["deleted"]}
-    group_map.update({-1:"Public Shared Macros"})
+    group_map.update({-1:public_macro_sheet_name})
 
     # creates dict of macros by group id
     grouped_macros = defaultdict(list)
@@ -59,11 +60,22 @@ def main():
     # print(wb.get_sheet_names())
 
     wb._sheets.sort(key=lambda ws: ws.title)
+    move_public_macro_sheet(wb, public_macro_sheet_name)
     wb.save("macro_review.xlsx")
 
     # print debugging
     # print(len(macros))
     print('done')
+
+# moves sheet with matching name to front.
+def move_public_macro_sheet(wb, public_macro_sheet_name):
+    for count, sheet in enumerate(wb._sheets):
+        print(count, sheet.title)
+        if sheet.title == public_macro_sheet_name:
+            temp = wb._sheets.pop(count)
+            wb._sheets.insert(0, temp)
+    
+                
 
 def sort_macros(active_macros, grouped_macros):
     for macro in active_macros:
