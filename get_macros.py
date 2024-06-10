@@ -11,6 +11,8 @@ import requests_cache
 from openpyxl import Workbook
 from openpyxl.styles import Color, Font, PatternFill
 
+# no logging just print debugging
+
 def main():
     # argument parsing
     parser = argparse.ArgumentParser()
@@ -39,6 +41,7 @@ def main():
     # print(len(groups))
     # dict of group id and corresponding name
     group_map = {item["id"]:item["name"].replace("/", "") for item in groups if not item["deleted"]}
+    group_map.update({-1:"Public Shared Macros"})
 
     # creates dict of macros by group id
     grouped_macros = defaultdict(list)
@@ -65,10 +68,14 @@ def main():
 def sort_macros(active_macros, grouped_macros):
     for macro in active_macros:
         restriction = macro["restriction"]
-        # filtering out null and non Group restrictions
+        # save off none restrictions to shared macros group
         if restriction is None:
+            macro["restriction"] = -1
             print(f"restriction is null, macro id number: {macro['id']}")
+            grouped_macros[-1].append(macro)
             continue
+
+        # filter out non group restrictions
         if restriction["type"] != "Group":
             print(f"restriction not group, macro id number: {macro['id']}")
             continue
@@ -93,8 +100,15 @@ def create_workbook(group_map, grouped_macros, wb):
             cell.font = font
             
         # highlight set up
-        highlight_index = Color(indexed=5)
-        highlight_fill = PatternFill(patternType='solid', fgColor=highlight_index)
+        # no action green 0099CC00 50
+        # review yellow 00FFFF99 43
+        # deactivate orange 00FFCC99 52
+        no_action_index = Color(indexed=50)
+        review_index = Color(indexed=43)
+        deactivation_index = Color(indexed=52)
+        highlight_review = PatternFill(patternType='solid', fgColor=review_index)
+        highlight_deactivation = PatternFill(patternType='solid', fgColor=deactivation_index)
+        highlight_no_action = PatternFill(patternType='solid', fgColor=no_action_index)
 
         # date operations set up
         comparision_date = datetime.datetime.today() - timedelta(days=90)
@@ -103,15 +117,39 @@ def create_workbook(group_map, grouped_macros, wb):
 
         # populating sheet with associated macros and highlighting macros of interest
         for macro in macro_list:
-            macro_groups = ",".join (group_map[item] for item in macro['restriction']['ids'])
-            ws1.append([macro["title"], macro["id"], macro["created_at"], macro["updated_at"], macro_groups, macro["usage_30d"]])
-
+            # setting none restrictions to n/a group name
+            if macro['restriction'] == -1:
+                macro_groups = "N/A"
+            else:
+                macro_groups = ", ".join (group_map[item] for item in macro['restriction']['ids'])
             updated_time = datetime.datetime.strptime(macro['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
+
+            if(updated_time < comparision_date and macro['usage_30d'] == 0):
+                ws1.append([macro["title"], macro["id"], macro["created_at"], macro["updated_at"], macro_groups, macro["usage_30d"], "Deactivation Suggested"])
+                for cell in ws1[ws1.max_row]:
+                    cell.fill = highlight_deactivation
+            
+            elif(updated_time < comparision_date and macro['usage_30d'] > 0):
+                ws1.append([macro["title"], macro["id"], macro["created_at"], macro["updated_at"], macro_groups, macro["usage_30d"], "Department Review"])
+                for cell in ws1[ws1.max_row]:
+                    cell.fill = highlight_review
+
+            # don't think is necessary
+            # elif(updated_time >= comparision_date and macro['usage_30d'] > 0):
+            #     ws1.append([macro["title"], macro["id"], macro["created_at"], macro["updated_at"], macro_groups, macro["usage_30d"], "Department Review"])
+
+            else:
+                ws1.append([macro["title"], macro["id"], macro["created_at"], macro["updated_at"], macro_groups, macro["usage_30d"], "No Action, Recommend Review"])
+                for cell in ws1[ws1.max_row]:
+                    cell.fill = highlight_no_action
+
+            # ws1.append([macro["title"], macro["id"], macro["created_at"], macro["updated_at"], macro_groups, macro["usage_30d"]])
+
             # print debugging
             # print(updated_time)
-            if macro['usage_30d'] is 0 or (updated_time < comparision_date and macro['usage_30d'] is 0):
-                for cell in ws1[ws1.max_row]:
-                    cell.fill = highlight_fill
+            # if macro['usage_30d'] is 0 or (updated_time < comparision_date and macro['usage_30d'] < 15):
+            #     for cell in ws1[ws1.max_row]:
+            #         cell.fill = highlight_fill
 
         # set id to show in regular form not scientific notation
         colB = ws1['B']
@@ -130,12 +168,9 @@ def create_workbook(group_map, grouped_macros, wb):
             cell.value = convert_iso_to_date(cell.value)
             
         auto_space_column_width(ws1)
-        # turnning on filtering
-        ws1.auto_filter.ref = ws1.dimensions
-        
+        ws1.auto_filter.ref = ws1.dimensions    
 
-# not my code 
-# puts width of column so all text is readable
+
 def auto_space_column_width(worksheet):
     for column in worksheet.columns:
         max_length = 0
@@ -166,6 +201,7 @@ def get_macro_list(session, next_url, key="macros"):
         response = session.get(next_url)
         response.raise_for_status()
         data = response.json()
+        # print debugging
         # print(json.dumps(response.json(), indent=2))
         next_url = data['next_page']
         results.extend(data[key])
