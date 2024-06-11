@@ -16,8 +16,9 @@ from openpyxl.styles import Color, Font, PatternFill
 def main():
     # argument parsing
     parser = argparse.ArgumentParser()
-    parser.add_argument("--user", "-u", type=str, action="store", default=os.getenv("ZENDESK_USERNAME"))
-    parser.add_argument("--password", "-p", type=str, action="store", default=os.getenv("ZENDESK_PASSWORD"))
+    parser.add_argument("--user", "-u", type=str, action="store", default=os.getenv("ZENDESK_USERNAME"), help="User's Zendesk username")
+    parser.add_argument("--password", "-p", type=str, action="store", default=os.getenv("ZENDESK_PASSWORD"), help="User's Zendesk password")
+    parser.add_argument("--help", "-h", action="help" )
     args = parser.parse_args()
 
     # request macros from zendesk
